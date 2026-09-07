@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useEvacuationStore } from '@/stores/evacuationStore';
 import { mockEvacuationRoutes, mockShelters } from '@/services/mockData';
 import { formatDistance, formatPopulation } from '@/utils/format';
 import { Map, ArrowRight, Shield, AlertTriangle, Users, CheckCircle2 } from 'lucide-react';
+import { EvacuationRoute } from '@/types';
 
 export const EvacuationPage = () => {
-  const { routes: storeRoutes, shelters: storeShelters } = useEvacuationStore();
+  const navigate = useNavigate();
+  const { routes: storeRoutes, shelters: storeShelters, selectRoute } = useEvacuationStore();
   const [declared, setDeclared] = useState(false);
 
   const routes = storeRoutes.length > 0 ? storeRoutes : mockEvacuationRoutes;
@@ -14,6 +17,11 @@ export const EvacuationPage = () => {
   const handleDeclareEvacuation = () => {
     setDeclared(true);
     setTimeout(() => setDeclared(false), 3000);
+  };
+
+  const handleViewMap = (route: EvacuationRoute) => {
+    selectRoute(route.id);
+    navigate('/command');
   };
 
   return (
@@ -85,7 +93,10 @@ export const EvacuationPage = () => {
                     </div>
                     
                     <div className="shrink-0 flex md:flex-col gap-2">
-                      <button className="flex-1 md:flex-none px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-colors">
+                      <button 
+                        onClick={() => handleViewMap(route)}
+                        className="flex-1 md:flex-none px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-colors cursor-pointer"
+                      >
                         View Map
                       </button>
                       {statusUpper !== 'ACTIVE' && (

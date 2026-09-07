@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { KPICard } from '@/components/ui/KPICard';
 import { Shield, AlertTriangle, Users, CloudRain, Truck } from 'lucide-react';
 import { RiskMap } from '@/components/map/RiskMap';
@@ -16,6 +16,20 @@ export function CommandCentrePage() {
   const { incidents } = useIncidentStore();
   const { resources } = useResourceStore();
   const { zones } = useRiskStore();
+
+  const [layerVisibility, setLayerVisibility] = useState<Record<string, boolean>>({
+    'risk-zones': true,
+    'sensors': true,
+    'incidents': true,
+    'resources': true,
+    'shelters': true,
+    'evacuation-routes': true,
+    'rainfall': true,
+  });
+
+  const handleLayerToggle = (layerId: string, visible: boolean) => {
+    setLayerVisibility(prev => ({ ...prev, [layerId]: visible }));
+  };
 
   const activeAlertsCount = alerts.filter(a => a.status === 'ACTIVE').length || 2;
   const activeIncidentsCount = incidents.filter(i => i.status !== 'CLOSED').length || 3;
@@ -46,8 +60,8 @@ export function CommandCentrePage() {
       
       <div className="flex-1 flex flex-col lg:flex-row min-h-0">
         <div className="flex-[2] bg-slate-950 border-r border-slate-800 relative z-0">
-          <MapLayerControl layers={{}} onChange={() => {}} />
-          <RiskMap />
+          <MapLayerControl layers={layerVisibility} onChange={handleLayerToggle} />
+          <RiskMap layerVisibility={layerVisibility} />
           <MapLegend />
         </div>
         
