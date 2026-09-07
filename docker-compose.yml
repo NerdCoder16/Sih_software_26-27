@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: ner_postgres
+    environment:
+      POSTGRES_DB: ner_ewrs
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: ner_redis
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: ner_backend
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgrespassword@postgres:5432/ner_ewrs"
+      REDIS_URL: "redis://redis:6379/0"
+      OPERATING_MODE: "DEMO"
+      WEATHER_PROVIDER: "MOCK"
+      CORS_ORIGINS: '["*"]'
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: ner_web
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: "http://localhost:8000/api/v1"
+      VITE_WS_URL: "ws://localhost:8000/ws/live"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
