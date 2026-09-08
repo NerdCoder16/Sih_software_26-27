@@ -429,20 +429,34 @@ export function RiskMap({ center = [92.5, 25.5], zoom = 7, layerVisibility, onZo
     if (!map.current) return;
     const m = map.current;
 
+    const removePopup = () => {
+      if (activePopup.current) {
+        activePopup.current.remove();
+        activePopup.current = null;
+      }
+    };
+
     const handleZoneClick = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
       if (!e.features || !e.features.length) return;
       const props = e.features[0].properties;
       if (!props) return;
 
       if (onZoneSelect) onZoneSelect(props.id);
+      removePopup();
 
-      if (activePopup.current) activePopup.current.remove();
+      const targetZone = zones.find(z => z.id === props.id);
+      const factorsHtml = targetZone?.factors ? targetZone.factors.map(f => `
+        <div style="display:flex; justify-content:space-between; font-size:11px; margin-top:2px; color:#cbd5e1;">
+          <span>${f.type}:</span>
+          <strong style="color:#e2e8f0;">${f.value} (Contrib: +${f.contribution})</strong>
+        </div>
+      `).join('') : '';
 
       activePopup.current = new maplibregl.Popup({ className: 'custom-map-popup' })
         .setLngLat(e.lngLat)
         .setHTML(`
-          <div style="background: #0f172a; color: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #334155; font-family: sans-serif; min-width: 200px;">
-            <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; color: #94a3b8;">${props.district || 'NER Region'}</div>
+          <div style="background: #0f172a; color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #334155; font-family: sans-serif; min-width: 220px;">
+            <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #94a3b8;">${props.district || 'NER Region'}</div>
             <div style="font-size: 14px; font-weight: bold; margin-bottom: 6px; color: #ffffff;">${props.name}</div>
             <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
               <span>Risk Level:</span>
@@ -452,18 +466,61 @@ export function RiskMap({ center = [92.5, 25.5], zoom = 7, layerVisibility, onZo
               <span>Risk Score:</span>
               <strong style="color: #38bdf8">${props.riskScore} / 100</strong>
             </div>
-            <div style="font-size: 11px; color: #cbd5e1;">Pop. at Risk: ${(Number(props.populationAtRisk) || 0).toLocaleString()}</div>
+            <div style="font-size: 11px; color: #cbd5e1; margin-bottom: 6px;">Pop. at Risk: ${(Number(props.populationAtRisk) || 0).toLocaleString()}</div>
+            ${factorsHtml ? `<div style="border-top:1px solid #1e293b; pt:4px; margin-top:4px;"><div style="font-size:10px; font-weight:bold; color:#a855f7;">AI Factor Breakdown:</div>${factorsHtml}</div>` : ''}
+          </div>
+        `)
+        .addTo(m);
+    };
+
+    const handleIncidentClick = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+      if (!e.features || !e.features.length) return;
+      const props = e.features[0].properties;
+      if (!props) return;
+      removePopup();
+
+      activePopup.current = new maplibregl.Popup()
+        .setLngLat(e.lngLat)
+        .setHTML(`
+          <div style="background: #0f172a; color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #ef4444; font-family: sans-serif; min-width: 200px;">
+            <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #ef4444;">Active Incident</div>
+            <div style="font-size: 13px; font-weight: bold; margin-bottom: 4px; color: #ffffff;">${props.title}</div>
+            <div style="font-size: 11px; color: #cbd5e1;">Severity: <strong style="color:#f97316;">${props.severity}</strong></div>
+            <div style="font-size: 11px; color: #cbd5e1;">Status: <strong style="color:#22c55e;">${props.status}</strong></div>
+          </div>
+        `)
+        .addTo(m);
+    };
+
+    const handleShelterClick = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+      if (!e.features || !e.features.length) return;
+      const props = e.features[0].properties;
+      if (!props) return;
+      removePopup();
+
+      activePopup.current = new maplibregl.Popup()
+        .setLngLat(e.lngLat)
+        .setHTML(`
+          <div style="background: #0f172a; color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #10b981; font-family: sans-serif; min-width: 200px;">
+            <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #10b981;">Evacuation Shelter</div>
+            <div style="font-size: 13px; font-weight: bold; margin-bottom: 4px; color: #ffffff;">${props.name}</div>
+            <div style="font-size: 11px; color: #cbd5e1;">Occupancy: <strong>${props.occupancy} / ${props.capacity}</strong></div>
+            <div style="font-size: 11px; color: #cbd5e1;">Available Space: <strong style="color:#38bdf8;">${props.capacity - props.occupancy} citizens</strong></div>
           </div>
         `)
         .addTo(m);
     };
 
     m.on('click', 'risk-zones-fill', handleZoneClick);
+    m.on('click', 'incidents-circle', handleIncidentClick);
+    m.on('click', 'shelters-circle', handleShelterClick);
 
     return () => {
       m.off('click', 'risk-zones-fill', handleZoneClick);
+      m.off('click', 'incidents-circle', handleIncidentClick);
+      m.off('click', 'shelters-circle', handleShelterClick);
     };
-  }, [onZoneSelect]);
+  }, [zones, incidents, shelters, onZoneSelect]);
 
   // 4. Update Layer Visibilities from layerVisibility Prop
   useEffect(() => {

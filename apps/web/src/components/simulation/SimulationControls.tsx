@@ -49,6 +49,7 @@ export function SimulationControls() {
 
   const handleReset = async () => {
     simulationEngine.stop();
+    simulationEngine.reset();
     reset();
     const provider = createDataProvider(operatingMode);
     await provider.controlSimulation('reset');
